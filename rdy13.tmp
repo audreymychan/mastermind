@@ -1,0 +1,1023 @@
+// The "MasterMind" class.
+// Ruchi Kumar and Audrey Chan
+// Date: Tuesday January 10th 2005
+// Purpose: The purpose of this game is to try to guess the secretcode. When the game starts, the program automatically generates a secret code after the
+//player enters their name. Then the player decides on their level of difficulty from the  menu bar on top. There are three levels: beginner, intermediate
+//and advanced and the number of balls changes accordingly. Then the player has to enter in the number of the ball they want to guess at a specific position
+//and press enter, after an enitre row is full, the program displays black and white pegs on the right. If a ball is in the right position and is the rigt
+//colour a black peg shows up, and if there's a right coloured ball in the wrong position, a white peg shows up. Then the player has to try to use these
+//hints to guess the secretcode in order to win the game MASTERMIND! without going over 9 chances otherwise it's game over.
+
+//importing
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+
+public class MasterMind extends Frame
+{
+
+    //declaring variables
+
+
+    // Game and Level MenuItems
+    MenuItem newOption, exitOption, aboutOption;
+    CheckboxMenuItem beginnerOption, intermediateOption, advancedOption;
+
+    //keeping track of level
+    int level;
+
+    //keeping track of the row and column or recent guesses
+    int rowGuess = 0;
+    int colGuess = 0;
+
+    // An array of 10 images
+    Image[] images;
+
+    // For drawing images offScreen (prevents Flicker)
+    // These variables keep track of an off screen image object and
+    // its corresponding graphics object
+    Image offScreenImage;
+    Graphics offScreenBuffer;
+
+    // user's name
+    String name;
+
+    // secret code and user's guesses
+    int[] secretCode = { - 1, -2, -3, -4};
+    int[] [] guessCode = new int [9] [4];
+
+    // text field for user's guesses
+    private TextField guessBox;
+
+    // fonts constants
+    static final Font NUMBER_FONT = new Font ("Comic Sans MS", Font.PLAIN, 32);
+    static final Font BALL_FONT = new Font ("Comic Sans MS", Font.PLAIN, 12);
+    static final Font FONT = new Font ("Arial", Font.PLAIN, 12);
+
+    // enter guess button
+    private Button enterGuessButton;
+
+    // constants for postioning of balls and pegs
+    final int pegXFirst = 302;
+    final int pegYTop = 399;
+    final int pegXSecond = 317;
+    final int pegYBottom = 412;
+    final int pegYBetween = 37;
+    final int ballXFirst = 140;
+    final int ballYFirst = 399;
+    final int ballXBetween = 30;
+    final int ballYBetween = 37;
+
+    // keeping track of number of black and white pegs and how to position the pegs
+    int blackPegs = 0;
+    int whitePegs = 0;
+    int pegPosition;
+
+    // setting gameOver to false
+    boolean gameOver = false;
+
+    public MasterMind ()
+    {
+
+	// Set the frame's name
+	super ("Mastermind");
+	// Set the frame's size
+	setSize (350, 500);
+	setLocation (0, 0);
+	// set title
+	setTitle ("..::Mastermind::..");
+	setLayout (null);
+
+	// Load in 11 images : 10 balls and title
+	// Since the images will be loaded by a separate independent processs,
+	// we use a MediaTracker to check if the images have been loaded
+	images = new Image [11];
+	MediaTracker tracker = new MediaTracker (this);
+	//looping to get all images from files
+	for (int imageNo = 0 ; imageNo < 11 ; imageNo++)
+	{
+	    String imageFileName = "pic" + imageNo + ".gif";
+	    images [imageNo] = Toolkit.getDefaultToolkit ().getImage (imageFileName);
+	    tracker.addImage (images [imageNo], imageNo);
+	}
+
+	//  Wait until all of the images are loaded
+	try
+	{
+	    tracker.waitForAll ();
+	}
+	catch (InterruptedException e)
+	{
+	}
+
+	// Set up the icon image (Tracker not needed for the icon image)
+	Image iconImage = Toolkit.getDefaultToolkit ().getImage ("pic5.gif");
+	setIconImage (iconImage);
+
+	// Set up the Menu
+	// Set up the Game Menu
+	Menu gameMenu = new Menu ("Game");
+	// Set up the Game MenuItems with Short cuts
+	newOption = new MenuItem ("New");
+	newOption.setShortcut (new MenuShortcut (KeyEvent.VK_N));
+	exitOption = new MenuItem ("Exit");
+	exitOption.setShortcut (new MenuShortcut (KeyEvent.VK_X));
+	// Add each MenuItem to the Game Menu (with a separator)
+	gameMenu.add (newOption);
+	gameMenu.addSeparator ();
+	gameMenu.add (exitOption);
+
+	// Set up the Level Menu
+	Menu levelMenu = new Menu ("Level");
+	beginnerOption = new CheckboxMenuItem ("Beginner", true);
+	level = 1;
+	intermediateOption = new CheckboxMenuItem ("Intermediate", false);
+	advancedOption = new CheckboxMenuItem ("Advanced", false);
+	levelMenu.add (beginnerOption);
+	levelMenu.add (intermediateOption);
+	levelMenu.add (advancedOption);
+
+	// Set up the Help Menu
+	aboutOption = new MenuItem ("About");
+	Menu helpMenu = new Menu ("Help");
+	helpMenu.add (aboutOption);
+
+	// Set up the Menu Bar and add the above Menus
+	MenuBar mainMenu = new MenuBar ();
+	mainMenu.add (gameMenu);
+	mainMenu.add (levelMenu);
+	mainMenu.setHelpMenu (helpMenu);
+
+	// Set the menu bar for this frame to mainMenu
+	setMenuBar (mainMenu);
+
+	// Show the frame
+	setVisible (true);
+
+	// set text box for the person's guess
+	guessBox = new TextField ();
+	guessBox.setBounds (245, 439, 25, 17);
+	add (guessBox);
+
+	// set button to enter guess
+	guessBox.setFont (FONT);
+	enterGuessButton = new Button ("Guess");
+	//Setting the position of the button and size
+	enterGuessButton.setBounds (280, 440, 50, 15);
+	add (enterGuessButton);
+
+	//calling the newGame method when program first run
+	newGame ();
+
+	setVisible (true);
+
+    }
+
+
+    /** Method : to deal with the menu options
+     * e : an event
+     * arg : and argument object
+     * Returns true if action made and return false otherwise. If action made, different functions appplies
+     */
+    public boolean action (Event e, Object arg)
+    {
+	//if user click new on the menu
+	if (e.target == newOption)
+	{
+	    gameOver = true;
+	    newGame ();
+	}
+
+	//if user clicks exit on menu
+	else if (e.target == exitOption)
+	{
+	    hide ();
+	    System.exit (0);
+	}
+
+	//if user clicks beginner on menu
+	else if (e.target == beginnerOption)
+	{
+	    level = 1;
+	    beginnerOption.setState (true);
+	    intermediateOption.setState (false);
+	    advancedOption.setState (false);
+	    newGame ();
+	}
+
+	//if user clicks intermediate on menu
+	else if (e.target == intermediateOption)
+	{
+	    level = 2;
+	    beginnerOption.setState (false);
+	    intermediateOption.setState (true);
+	    advancedOption.setState (false);
+	    newGame ();
+
+	}
+
+	//if user clicks advanced on menu
+	else if (e.target == advancedOption)
+	{
+	    level = 3;
+	    beginnerOption.setState (false);
+	    intermediateOption.setState (false);
+	    advancedOption.setState (true);
+	    newGame ();
+	}
+	//if user clicks guess button
+	else if (e.target == enterGuessButton)
+	{
+	    //Error checks if number is out of range and output message to tell user to input another guess
+	    // level 1
+	    if (!(Integer.parseInt (guessBox.getText ()) > 0) || !(Integer.parseInt (guessBox.getText ()) < 7) && level == 1)
+	    {
+		JOptionPane.showMessageDialog (this, "You must enter a number from 1-6",
+			"Message", JOptionPane.WARNING_MESSAGE);
+
+	    }
+	    // level 1
+	    else if (!(Integer.parseInt (guessBox.getText ()) > 0) || !(Integer.parseInt (guessBox.getText ()) < 8) && level == 1)
+	    {
+		JOptionPane.showMessageDialog (this, "You must enter a number from 1-8",
+			"Message", JOptionPane.WARNING_MESSAGE);
+	    }
+	    //level 3
+	    else if (!(Integer.parseInt (guessBox.getText ()) > 0) || !(Integer.parseInt (guessBox.getText ()) < 11) && level == 1)
+	    {
+		JOptionPane.showMessageDialog (this, "You must enter a number from 1-10",
+			"Message", JOptionPane.WARNING_MESSAGE);
+
+	    }
+	    // if not out of range, get guess frm user and store into the guessCode array, go to next column for next guess
+	    else
+	    {
+		guessCode [rowGuess] [colGuess] = Integer.parseInt (guessBox.getText ());
+		colGuess++;
+	    }
+
+	    // if (checkDouble (guessCode, rowGuess, colGuess) > 0)
+	    // {
+	    //     JOptionPane.showMessageDialog (this, "No doubling of colors",
+	    //             "Message", JOptionPane.WARNING_MESSAGE);
+	    //     colGuess--;
+	    // }
+
+	}
+
+	//if user clicks about on menu
+	else if (e.target == aboutOption)
+	{
+	    //outputting message that explains the game
+	    JOptionPane.showMessageDialog (this,
+		    "The goal of this game is to try to guess the secretcode. \n\nEnter in the number that corresponds to the ball you want\nand then press the guess button. \n\nDifferent level of difficulty are available and could be changed in the top menu. Doubling of colors is allowed\n\nOnce the row is full, black and white pegs will appear on the right. \nBlack indicates that you have a ball with the right colour in the right position.\n White indicates you have the right colour ball but its in the wrong position.\n\nUse these hints to try and guess the secret code! \n\nYou only have 9 chances. \n\nGood Luck!", "About...",
+		    JOptionPane.INFORMATION_MESSAGE);
+	}
+
+	//return false if no action made
+	else
+	    return false;
+	repaint (); // Update screen with new message
+	return true;
+    }
+
+
+    /** Method : handes the close button on the window
+    *evt:and event
+    *Returnstrueif close button pressed and closes the sytem window, if not handles, pass the event along
+    */
+    public boolean handleEvent (Event evt)
+    {
+	if (evt.id == Event.WINDOW_DESTROY)
+	{
+	    hide ();
+	    System.exit (0);
+	    return true;
+	}
+
+	// If not handled, pass the event along
+	return super.handleEvent (evt);
+    }
+
+
+    /** Method : override update when using the offScreenBuffer
+    *g: graphics
+    *Returns nothing but updates the screen to prevent automatic clearing of the screen
+    */
+    public void update (Graphics g)
+    {
+	paint (g);
+    }
+
+
+    /** Method : get rid of the offScreenBuffer on our own
+	*no parameter
+	*Returns nothing but get rid of offScreenBuffer
+	*/
+    public void destroy ()
+    {
+	offScreenBuffer.dispose ();
+    }
+
+
+    // public int checkDouble (int[] [] guessCode, int row, int col)
+    // {
+    //     int doubles = 0;
+    //     for (int count = 1 ; count < col ; count++)
+    //     {
+    //         if (guessCode [row] [col] == guessCode [row] [col - count])
+    //             doubles++;
+    //     }
+    //     return doubles;
+    // }
+
+
+    /** Method : to start a new game
+	*no parameter
+	*Returns nothing but start a new game by asking the user for his/her name, clearing the board, generating code and repainting
+	*/
+    public void newGame ()
+    {
+	//generate code at the beginning
+	generateCode (secretCode);
+	//clear the board with this methods
+	clearBoard ();
+	//redraw everything on the board
+	repaint ();
+	// Create a dialog to input name
+
+	name = JOptionPane.showInputDialog (this, "Please enter your name");
+
+	// Show a message using a message dialog
+	if (name == null)
+	    JOptionPane.showMessageDialog (this, "You selected Cancel",
+		    "Message", JOptionPane.WARNING_MESSAGE);
+	else
+	    JOptionPane.showMessageDialog (this, "Welcome " + name, "Message",
+		    JOptionPane.INFORMATION_MESSAGE);
+
+	repaint ();
+
+    }
+
+
+    /** Method : to generate the random code
+	*secretCode: empty array so that this method can randomly generate numbers into the array, according to numbers of balls in the level
+	*Returns nothing when values stored into array, array changes value
+	*/
+    public void generateCode (int[] secretCode)
+    {
+	//random number
+	int number;
+	// number of number generated
+	int guess = 0;
+	// variable for doubling
+	boolean contain = false;
+
+
+	//if level is 1
+	while (level == 1 && guess < 4)
+	{
+
+	    contain = false;
+	    //generate random number between 1 and 6,store in array
+	    number = (int) (Math.random () * 6 + 1);
+	    for (int count = 0 ; count < 4 ; count++)
+	    {
+		if (number == secretCode [count])
+		    contain = true;
+	    }
+	    if (contain == false)
+	    {
+		secretCode [guess] = number;
+		guess++;
+	    }
+
+
+	}
+
+
+	//if level is 2
+	while (level == 2 && guess < 4)
+	{
+
+	     contain = false;
+	    //generate random number between 1 and 6,store in array
+	    number = (int) (Math.random () * 8 + 1);
+	    for (int count = 0 ; count < 4 ; count++)
+	    {
+		if (number == secretCode [count])
+		    contain = true;
+	    }
+	    if (contain == false)
+	    {
+		secretCode [guess] = number;
+		guess++;
+	    }
+
+
+	}
+
+
+	//if level is 3
+	while (level == 3 && guess < 4)
+	{
+
+
+	    contain = false;
+	    //generate random number between 1 and 6,store in array
+	    number = (int) (Math.random () * 10 + 1);
+	    for (int count = 0 ; count < 4 ; count++)
+	    {
+		if (number == secretCode [count])
+		    contain = true;
+	    }
+	    if (contain == false)
+	    {
+		secretCode [guess] = number;
+		guess++;
+	    }
+
+	}
+    }
+
+
+
+    /** Method : to count the number of black pegs (right position, right color)
+    * guessCode : to compare with secretCode to count how many black pegs to return
+    * secretCode: to compare with guessCode
+    * row : the row the play is at, to check guessCode at that row
+    *Returns the integer value of the number of black pegs
+    */
+    public int blackPegs (int[] [] guessCode, int[] secretCode, int row)
+    {
+	// initialize to zero to start over count
+	blackPegs = 0;
+	// check each column for same colour, if there is, add one to blackPegs each time
+	for (int col = 0 ; col < 4 ; col++)
+	{
+	    if (guessCode [row] [col] == secretCode [col])
+	    {
+		blackPegs++;
+	    }
+	}
+
+	// black pegs equals to four, call winner method
+	if (blackPegs == 4)
+	    winner ();
+
+	return blackPegs;
+
+    }
+
+
+    /** Method : count number of white pegs (right color but wrong position)
+     * guessCode : to compare with secretCode to count how many white pegs to return
+     * secretCode: to compare with guessCode
+     * row : the row the play is at, to check guessCode at that row
+     *Returns the integer value of the number of white pegs
+     */
+
+    public int whitePegs (int[] [] guessCode, int[] secretCode, int row)
+    {
+	//initialize to start over count
+	whitePegs = 0;
+	// increment of column in guessCode
+	for (int col = 0 ; col < 4 ; col++)
+	{
+	    // increment of column in secretCode
+	    for (int col1 = 0 ; col1 < 4 ; col1++)
+	    {
+		// if found color from guessCode in secretCode but not the same column, add one to whitePegs
+		if ((guessCode [row] [col] == secretCode [col1] && col != col1))
+		{
+		    whitePegs++;
+		}
+	    }
+	}
+
+
+	return whitePegs;
+    }
+
+
+    /** Method : if play has won or lost, follow different procedures of outputing messages
+      * no parameters
+    *noreturnvaluebut output messages and see if start new game or close window
+    */
+
+    public void winner ()
+    {
+	//If you win, display message
+	if (gameOver != true)
+	{
+
+	    JOptionPane.showMessageDialog (this, name + " wins!", "Message",
+		    JOptionPane.INFORMATION_MESSAGE);
+	    // ask if user wants to play again, is yes, start a new game
+	    if (JOptionPane.showConfirmDialog (this, "Do you want to Play Again?",
+			"Message", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
+	    {
+		gameOver = false;
+		newGame ();
+
+	    }
+	    // if no, close the window
+	    else
+	    {
+
+		JOptionPane.showMessageDialog (this, "Goodbye", "Message",
+			JOptionPane.INFORMATION_MESSAGE);
+		hide ();
+		System.exit (0);
+	    }
+	}
+
+
+	//if you lose display this message
+	else
+	{
+	    JOptionPane.showMessageDialog (this, name + " loses!", "Message",
+		    JOptionPane.INFORMATION_MESSAGE);
+
+	    // ask if play again
+	    if (JOptionPane.showConfirmDialog (this, "Do you want to Play Again?",
+			"Message", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
+	    {
+		gameOver = false;
+		newGame ();
+
+	    }
+	    else
+	    {
+		JOptionPane.showMessageDialog (this, "Goodbye", "Message",
+			JOptionPane.INFORMATION_MESSAGE);
+		hide ();
+		System.exit (0);
+	    }
+	}
+
+
+	repaint ();
+    }
+
+
+
+    /** Method : to clear the board
+      * no parameters
+    * returns nothing but clear the value of the guessCode board to start over game
+    */
+    public void clearBoard ()
+    {
+	// set variables back to 0
+	colGuess = 0;
+	rowGuess = 0;
+	// go through each row at each column and initialize back to zero
+	for (int row = 0 ; row < 9 ; row++)
+	{
+	    for (int col = 0 ; col < 4 ; col++)
+	    {
+		guessCode [row] [col] = 0;
+	    }
+	}
+    }
+
+
+    /** Method : paint
+     * g: graphics
+    *returns nothing paints everything in the paint methods when called
+    */
+
+    public void paint (Graphics g)
+    {
+	// Set up the offscreen buffer the first time paint() is called
+	if (offScreenBuffer == null)
+	{
+	    offScreenImage = createImage (size ().width, size ().height);
+	    offScreenBuffer = offScreenImage.getGraphics ();
+	}
+
+
+	// All of the drawing is done to an off screen buffer which is
+	// then copied to the screen.  This will prevent flickering
+	// Clear the offScreenBuffer first
+	offScreenBuffer.clearRect (0, 0, size ().width, size ().height);
+
+
+	// draw the boxes
+
+
+	offScreenBuffer.setColor (Color.black); //background
+	offScreenBuffer.fillRect (0, 0, 350, 500);
+	offScreenBuffer.setColor (Color.gray);
+	offScreenBuffer.fillRect (70, 60, 30, 27);
+	offScreenBuffer.fillRect (70, 97, 30, 32); //number boxes from 9
+	offScreenBuffer.fillRect (70, 134, 30, 32);
+	offScreenBuffer.fillRect (70, 171, 30, 32);
+	offScreenBuffer.fillRect (70, 208, 30, 32);
+	offScreenBuffer.fillRect (70, 245, 30, 32);
+	offScreenBuffer.fillRect (70, 282, 30, 32);
+	offScreenBuffer.fillRect (70, 319, 30, 32);
+	offScreenBuffer.fillRect (70, 356, 30, 32);
+	offScreenBuffer.fillRect (70, 393, 30, 32); //1
+	offScreenBuffer.fillRect (15, 435, 320, 49);
+
+	offScreenBuffer.setColor (Color.red); // red secret code
+	offScreenBuffer.fillRect (110, 60, 170, 27);
+
+	offScreenBuffer.setColor (Color.gray);
+	offScreenBuffer.fillRect (110, 97, 170, 32); // row 9 middle box
+	offScreenBuffer.fillRect (110, 134, 170, 32);
+	offScreenBuffer.fillRect (110, 171, 170, 32);
+	offScreenBuffer.fillRect (110, 208, 170, 32);
+	offScreenBuffer.fillRect (110, 245, 170, 32);
+	offScreenBuffer.fillRect (110, 282, 170, 32);
+	offScreenBuffer.fillRect (110, 319, 170, 32);
+	offScreenBuffer.fillRect (110, 356, 170, 32);
+	offScreenBuffer.fillRect (110, 393, 170, 32); // 1
+
+
+	offScreenBuffer.fillRect (290, 60, 45, 27);
+	offScreenBuffer.fillRect (290, 97, 45, 32); // peg box from 9
+	offScreenBuffer.fillRect (290, 134, 45, 32);
+	offScreenBuffer.fillRect (290, 171, 45, 32);
+	offScreenBuffer.fillRect (290, 208, 45, 32);
+	offScreenBuffer.fillRect (290, 245, 45, 32);
+	offScreenBuffer.fillRect (290, 282, 45, 32);
+	offScreenBuffer.fillRect (290, 319, 45, 32);
+	offScreenBuffer.fillRect (290, 356, 45, 32);
+	offScreenBuffer.fillRect (290, 393, 45, 32); //1
+
+	//circles
+	offScreenBuffer.setColor (Color.white);
+	offScreenBuffer.drawOval (140, 103, 20, 20); // row 9 top left
+	offScreenBuffer.drawOval (170, 103, 20, 20);
+	offScreenBuffer.drawOval (200, 103, 20, 20);
+	offScreenBuffer.drawOval (230, 103, 20, 20); // row 9 top right
+
+	offScreenBuffer.drawOval (140, 140, 20, 20); // row 8
+	offScreenBuffer.drawOval (170, 140, 20, 20);
+	offScreenBuffer.drawOval (200, 140, 20, 20);
+	offScreenBuffer.drawOval (230, 140, 20, 20);
+
+	offScreenBuffer.drawOval (140, 177, 20, 20); // row 7
+	offScreenBuffer.drawOval (170, 177, 20, 20);
+	offScreenBuffer.drawOval (200, 177, 20, 20);
+	offScreenBuffer.drawOval (230, 177, 20, 20);
+
+	offScreenBuffer.drawOval (140, 214, 20, 20); // row 6
+	offScreenBuffer.drawOval (170, 214, 20, 20);
+	offScreenBuffer.drawOval (200, 214, 20, 20);
+	offScreenBuffer.drawOval (230, 214, 20, 20);
+
+	offScreenBuffer.drawOval (140, 251, 20, 20); // row 5
+	offScreenBuffer.drawOval (170, 251, 20, 20);
+	offScreenBuffer.drawOval (200, 251, 20, 20);
+	offScreenBuffer.drawOval (230, 251, 20, 20);
+
+	offScreenBuffer.drawOval (140, 288, 20, 20); // row 4
+	offScreenBuffer.drawOval (170, 288, 20, 20);
+	offScreenBuffer.drawOval (200, 288, 20, 20);
+	offScreenBuffer.drawOval (230, 288, 20, 20);
+
+	offScreenBuffer.drawOval (140, 325, 20, 20); // row 3
+	offScreenBuffer.drawOval (170, 325, 20, 20);
+	offScreenBuffer.drawOval (200, 325, 20, 20);
+	offScreenBuffer.drawOval (230, 325, 20, 20);
+
+	offScreenBuffer.drawOval (140, 362, 20, 20); // row 2
+	offScreenBuffer.drawOval (170, 362, 20, 20);
+	offScreenBuffer.drawOval (200, 362, 20, 20);
+	offScreenBuffer.drawOval (230, 362, 20, 20);
+
+	offScreenBuffer.drawOval (140, 399, 20, 20); // row 1
+	offScreenBuffer.drawOval (170, 399, 20, 20);
+	offScreenBuffer.drawOval (200, 399, 20, 20);
+	offScreenBuffer.drawOval (230, 399, 20, 20);
+
+
+	//Small circles
+	offScreenBuffer.drawOval (302, 103, 8, 8); // row 9 top left
+	offScreenBuffer.drawOval (302, 118, 8, 8);
+	offScreenBuffer.drawOval (317, 103, 8, 8);
+	offScreenBuffer.drawOval (317, 118, 8, 8); // row 9 top right
+
+	offScreenBuffer.drawOval (302, 140, 8, 8); // row 8
+	offScreenBuffer.drawOval (302, 154, 8, 8);
+	offScreenBuffer.drawOval (317, 140, 8, 8);
+	offScreenBuffer.drawOval (317, 154, 8, 8);
+
+	offScreenBuffer.drawOval (302, 177, 8, 8); // row 7
+	offScreenBuffer.drawOval (302, 191, 8, 8);
+	offScreenBuffer.drawOval (317, 177, 8, 8);
+	offScreenBuffer.drawOval (317, 191, 8, 8);
+
+	offScreenBuffer.drawOval (302, 214, 8, 8); // row 6
+	offScreenBuffer.drawOval (302, 228, 8, 8);
+	offScreenBuffer.drawOval (317, 214, 8, 8);
+	offScreenBuffer.drawOval (317, 228, 8, 8);
+
+	offScreenBuffer.drawOval (302, 251, 8, 8); // row 5
+	offScreenBuffer.drawOval (302, 265, 8, 8);
+	offScreenBuffer.drawOval (317, 251, 8, 8);
+	offScreenBuffer.drawOval (317, 265, 8, 8);
+
+	offScreenBuffer.drawOval (302, 288, 8, 8); // row 4
+	offScreenBuffer.drawOval (302, 302, 8, 8);
+	offScreenBuffer.drawOval (317, 288, 8, 8);
+	offScreenBuffer.drawOval (317, 302, 8, 8);
+
+	offScreenBuffer.drawOval (302, 325, 8, 8); // row 3
+	offScreenBuffer.drawOval (302, 339, 8, 8);
+	offScreenBuffer.drawOval (317, 325, 8, 8);
+	offScreenBuffer.drawOval (317, 339, 8, 8);
+
+	offScreenBuffer.drawOval (302, 362, 8, 8); // row 2
+	offScreenBuffer.drawOval (302, 376, 8, 8);
+	offScreenBuffer.drawOval (317, 362, 8, 8);
+	offScreenBuffer.drawOval (317, 376, 8, 8);
+
+	offScreenBuffer.drawOval (302, 400, 8, 8); // row 1
+	offScreenBuffer.drawOval (302, 413, 8, 8);
+	offScreenBuffer.drawOval (317, 400, 8, 8);
+	offScreenBuffer.drawOval (317, 413, 8, 8);
+
+	//draw the title
+	offScreenBuffer.drawImage (images [10], 10, 50, 50, 380, this);
+	offScreenBuffer.setFont (NUMBER_FONT);
+
+	// draw balls with number according to level
+	if (level == 1)
+	{
+	    offScreenBuffer.drawImage (images [0], 25, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [1], 55, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [2], 85, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [3], 115, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [4], 145, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [5], 175, 455, 30, 30, this);
+	    offScreenBuffer.setFont (BALL_FONT);
+	    offScreenBuffer.drawString ("1", 45, 480);
+	    offScreenBuffer.drawString ("2", 75, 480);
+	    offScreenBuffer.drawString ("3", 105, 480);
+	    offScreenBuffer.drawString ("4", 135, 480);
+	    offScreenBuffer.drawString ("5", 165, 480);
+	    offScreenBuffer.drawString ("6", 195, 480);
+
+
+	}
+
+
+	offScreenBuffer.setFont (NUMBER_FONT);
+	if (level == 2)
+	{
+	    offScreenBuffer.drawImage (images [0], 25, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [1], 55, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [2], 85, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [3], 115, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [4], 145, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [5], 175, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [6], 205, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [7], 235, 455, 30, 30, this);
+	    offScreenBuffer.setFont (BALL_FONT);
+	    offScreenBuffer.drawString ("1", 45, 480);
+	    offScreenBuffer.drawString ("2", 75, 480);
+	    offScreenBuffer.drawString ("3", 105, 480);
+	    offScreenBuffer.drawString ("4", 135, 480);
+	    offScreenBuffer.drawString ("5", 165, 480);
+	    offScreenBuffer.drawString ("6", 195, 480);
+	    offScreenBuffer.drawString ("7", 225, 480);
+	    offScreenBuffer.drawString ("8", 255, 480);
+	}
+
+
+	offScreenBuffer.setFont (NUMBER_FONT);
+	if (level == 3)
+	{
+	    offScreenBuffer.drawImage (images [0], 25, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [1], 55, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [2], 85, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [3], 115, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [4], 145, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [5], 175, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [6], 205, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [7], 235, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [8], 265, 455, 30, 30, this);
+	    offScreenBuffer.drawImage (images [9], 295, 455, 30, 30, this);
+	    offScreenBuffer.setFont (BALL_FONT);
+	    offScreenBuffer.drawString ("1", 45, 480);
+	    offScreenBuffer.drawString ("2", 75, 480);
+	    offScreenBuffer.drawString ("3", 105, 480);
+	    offScreenBuffer.drawString ("4", 135, 480);
+	    offScreenBuffer.drawString ("5", 165, 480);
+	    offScreenBuffer.drawString ("6", 195, 480);
+	    offScreenBuffer.drawString ("7", 225, 480);
+	    offScreenBuffer.drawString ("8", 255, 480);
+	    offScreenBuffer.drawString ("9", 285, 480);
+	    offScreenBuffer.drawString ("10", 315, 480);
+
+	}
+
+
+	offScreenBuffer.setColor (Color.white);
+
+	offScreenBuffer.setFont (NUMBER_FONT);
+	//row number
+	offScreenBuffer.drawString ("9", 75, 125);
+	offScreenBuffer.drawString ("8", 75, 162);
+	offScreenBuffer.drawString ("7", 75, 199);
+	offScreenBuffer.drawString ("6", 75, 236);
+	offScreenBuffer.drawString ("5", 75, 273);
+	offScreenBuffer.drawString ("4", 75, 310);
+	offScreenBuffer.drawString ("3", 75, 347);
+	offScreenBuffer.drawString ("2", 75, 384);
+	offScreenBuffer.drawString ("1", 75, 421);
+
+
+
+	//loops to draw the black pegs in the right position
+	for (int row = 0 ; row < rowGuess ; row++)
+	{
+	    //call black and white pegs method to get number of them
+	    blackPegs (guessCode, secretCode, row);
+	    whitePegs (guessCode, secretCode, row);
+
+	    pegPosition = 0;
+	    offScreenBuffer.setColor (Color.black);
+	    for (int count = 0 ; count < blackPegs ; count++)
+	    {
+		if (pegPosition == 0)
+		{
+		    offScreenBuffer.fillOval (pegXFirst, pegYTop - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 1)
+		{
+		    offScreenBuffer.fillOval (pegXSecond, pegYTop - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 2)
+		{
+		    offScreenBuffer.fillOval (pegXFirst, pegYBottom - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 3)
+		{
+		    offScreenBuffer.fillOval (pegXSecond, pegYBottom - (row * pegYBetween), 8, 8);
+		}
+		pegPosition++;
+	    }
+
+	    offScreenBuffer.setColor (Color.white);
+
+	    //loop to draw the white pegs in the right position
+	    for (int count = 0 ; count < whitePegs ; count++)
+	    {
+		if (pegPosition == 0)
+		{
+		    offScreenBuffer.fillOval (pegXFirst, pegYTop - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 1)
+		{
+		    offScreenBuffer.fillOval (pegXSecond, pegYTop - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 2)
+		{
+		    offScreenBuffer.fillOval (pegXFirst, pegYBottom - (row * pegYBetween), 8, 8);
+		}
+		if (pegPosition == 3)
+		{
+		    offScreenBuffer.fillOval (pegXSecond, pegYBottom - (row * pegYBetween), 8, 8);
+		}
+		pegPosition++;
+
+	    }
+
+	}
+
+	// if a complete set of guess has been made
+	if (colGuess == 4)
+	{
+	    for (int row = 0 ; row <= rowGuess ; row++)
+	    {
+		blackPegs (guessCode, secretCode, row);
+		whitePegs (guessCode, secretCode, row);
+
+
+		pegPosition = 0;
+		offScreenBuffer.setColor (Color.black);
+		for (int count = 0 ; count < blackPegs ; count++)
+		{
+		    if (pegPosition == 0)
+		    {
+			offScreenBuffer.fillOval (pegXFirst, pegYTop - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 1)
+		    {
+			offScreenBuffer.fillOval (pegXSecond, pegYTop - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 2)
+		    {
+			offScreenBuffer.fillOval (pegXFirst, pegYBottom - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 3)
+		    {
+			offScreenBuffer.fillOval (pegXSecond, pegYBottom - (row * pegYBetween), 8, 8);
+		    }
+		    pegPosition++;
+		}
+		offScreenBuffer.setColor (Color.white);
+		for (int count = 0 ; count < whitePegs ; count++)
+		{
+		    if (pegPosition == 0)
+		    {
+			offScreenBuffer.fillOval (pegXFirst, pegYTop - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 1)
+		    {
+			offScreenBuffer.fillOval (pegXSecond, pegYTop - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 2)
+		    {
+			offScreenBuffer.fillOval (pegXFirst, pegYBottom - (row * pegYBetween), 8, 8);
+		    }
+		    if (pegPosition == 3)
+		    {
+			offScreenBuffer.fillOval (pegXSecond, pegYBottom - (row * pegYBetween), 8, 8);
+		    }
+		    pegPosition++;
+
+		}
+
+	    }
+	}
+
+
+	//loop to draw the right coloured ball in the right column and in the right row
+	for (int row1 = 0 ; row1 < 9 ; row1++)
+	{
+	    for (int col = 0 ; col < 4 ; col++)
+	    {
+		if (guessCode [row1] [col] == 1)
+		    offScreenBuffer.drawImage (images [0], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 2)
+		    offScreenBuffer.drawImage (images [1], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 3)
+		    offScreenBuffer.drawImage (images [2], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 4)
+		    offScreenBuffer.drawImage (images [3], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 5)
+		    offScreenBuffer.drawImage (images [4], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 6)
+		    offScreenBuffer.drawImage (images [5], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 7)
+		    offScreenBuffer.drawImage (images [6], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 8)
+		    offScreenBuffer.drawImage (images [7], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 9)
+		    offScreenBuffer.drawImage (images [8], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+		else if (guessCode [row1] [col] == 10)
+		    offScreenBuffer.drawImage (images [9], ballXFirst + (col * ballXBetween), ballYFirst - (row1 * ballYBetween), 20, 20, this);
+	    }
+	}
+
+
+
+	//if a row is full, go to next row
+	if (colGuess == 4)
+	{
+	    rowGuess++;
+	    colGuess = 0;
+	}
+
+
+	//if all rows are used up, then game over and call winner method
+	if (rowGuess > 8)
+	{
+	    gameOver = true;
+	    winner ();
+	}
+
+	// output status bar
+	offScreenBuffer.setFont (FONT);
+	if (colGuess < 5)
+	{
+	    offScreenBuffer.drawString ("Take your guess. Row " + (rowGuess + 1) + " Column " + (colGuess + 1) + " ->", 29, 451);
+	}
+
+
+	// Transfer the offScreenBuffer to the screen
+	g.drawImage (offScreenImage, 0, 0, this);
+
+
+
+    } //paint method
+
+
+
+    public static void main (String[] args)
+    {
+
+	new MasterMind ();
+
+
+    } // main method
+} // MasterMind class
+
+
