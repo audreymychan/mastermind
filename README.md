@@ -1,2 +1,2 @@
 # mastermind
-Old code dump - MasterMind game application
+MasterMind game application (2005)
